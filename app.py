@@ -92,12 +92,36 @@ hc_extractor = HandcraftedExtractor()
 @app.post("/predict")
 async def predict_herb(file: UploadFile = File(...)):
     global model_A, model_B
+
+    print("========== PREDICT REQUEST RECEIVED ==========", flush=True)
+    logger.info("========== PREDICT REQUEST RECEIVED ==========")
+
     try:
-        if model_A is None or model_B is None:
-            logger.info("Loading Models with compile=False for compatibility...")
-            # compile=False দিলে ভার্সন অমিলজনিত এরর আর আসবে না
-            model_A = tf.keras.models.load_model('mac_best_hybrid_model_new.keras', custom_objects={'CBAM': CBAM}, compile=False)
-            model_B = tf.keras.models.load_model('mac_model_B_saved', custom_objects={'CBAM': CBAM}, compile=False)
+        if model_A is None:
+            print("Loading Model A...", flush=True)
+            logger.info("Loading Model A...")
+
+            model_A = tf.keras.models.load_model(
+                "mac_best_hybrid_model_new.keras",
+                custom_objects={"CBAM": CBAM},
+                compile=False
+            )
+
+            print("✅ Model A Loaded", flush=True)
+            logger.info("Model A Loaded")
+
+        if model_B is None:
+            print("Loading Model B...", flush=True)
+            logger.info("Loading Model B...")
+
+            model_B = tf.keras.models.load_model(
+                "model_B.keras",
+                custom_objects={"CBAM": CBAM},
+                compile=False
+            )
+
+            print("✅ Model B Loaded", flush=True)
+            logger.info("Model B Loaded")
 
         contents = await file.read()
         image = Image.open(io.BytesIO(contents)).convert('RGB')
