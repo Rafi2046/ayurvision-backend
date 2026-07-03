@@ -114,11 +114,11 @@ async def predict_herb(file: UploadFile = File(...)):
             print("Loading Model B...", flush=True)
             logger.info("Loading Model B...")
 
-            model_B = tf.keras.models.load_model(
-                "model_B.keras",
-                custom_objects={"CBAM": CBAM},
-                compile=False
-            )
+          model_B = tf.keras.models.load_model(
+         "mac_best_model_B_new.keras",
+         custom_objects={"CBAM": CBAM},
+         compile=False
+)
 
             print("✅ Model B Loaded", flush=True)
             logger.info("Model B Loaded")
