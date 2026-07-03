@@ -96,7 +96,7 @@ async def predict_herb(file: UploadFile = File(...)):
     print("========== PREDICT REQUEST RECEIVED ==========", flush=True)
     logger.info("========== PREDICT REQUEST RECEIVED ==========")
 
-    try:
+       try:
         if model_A is None:
             print("Loading Model A...", flush=True)
             logger.info("Loading Model A...")
@@ -114,23 +114,23 @@ async def predict_herb(file: UploadFile = File(...)):
             print("Loading Model B...", flush=True)
             logger.info("Loading Model B...")
 
-          model_B = tf.keras.models.load_model(
-         "mac_best_model_B_new.keras",
-         custom_objects={"CBAM": CBAM},
-         compile=False
-)
+            model_B = tf.keras.models.load_model(
+                "mac_best_model_B_new.keras",
+                custom_objects={"CBAM": CBAM},
+                compile=False
+            )
 
             print("✅ Model B Loaded", flush=True)
             logger.info("Model B Loaded")
 
         contents = await file.read()
-        image = Image.open(io.BytesIO(contents)).convert('RGB')
+        image = Image.open(io.BytesIO(contents)).convert("RGB")
         img_rgb = np.array(image)
         img_resized = cv2.resize(img_rgb, (256, 256))
-        
+
         img_tensor = tf.cast(tf.expand_dims(img_resized, axis=0), tf.float32) / 255.0
         hc_tensor = hc_extractor.extract_all(img_resized)
-        
+
         pA = model_A.predict([img_tensor, hc_tensor], verbose=0)[0]
         pB = model_B.predict([img_tensor, hc_tensor], verbose=0)[0]
         
