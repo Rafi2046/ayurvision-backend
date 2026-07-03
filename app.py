@@ -359,11 +359,11 @@ def load_models():
         raise FileNotFoundError(f"{MODEL_B_PATH} not found")
 
     logger.info("Loading Model A...")
-
     model_A = tf.keras.models.load_model(
         MODEL_A_PATH,
         custom_objects=custom_objects,
         compile=False,
+        safe_mode=False,
     )
 
     logger.info("Model A Loaded")
@@ -374,10 +374,12 @@ def load_models():
         MODEL_B_PATH,
         custom_objects=custom_objects,
         compile=False,
+        safe_mode=False,
     )
 
     logger.info("Model B Loaded")
 
+ 
     logger.info("===================================")
     logger.info("Models Loaded Successfully")
     logger.info("===================================")
