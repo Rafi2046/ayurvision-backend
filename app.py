@@ -126,3 +126,205 @@ async def predict_herb(file: UploadFile = File(...)):
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=7860)
+# ==========================================================
+# Globals
+# ==========================================================
+
+MODEL_A_PATH = "mac_best_hybrid_model_new.keras"
+MODEL_B_PATH = "mac_model_B_saved"
+
+model_A = None
+model_B = None
+
+custom_objects = {
+    "CBAM": CBAM
+}
+
+hc_extractor = HandcraftedExtractor()
+
+class_names = [
+    "Akanda",
+    "Aloe Vera",
+    "Anshte Lota",
+    "Aparajita",
+    "Arjun",
+    "Ashwagandha",
+    "Bideshi Lota",
+    "Devil's Backbone",
+    "Dipto Luchi",
+    "Joba",
+    "Kalojira",
+    "Kori Pata",
+    "Kumari Lota",
+    "Lojjaboti",
+    "Nim",
+    "Noyontara",
+    "Pathorkuchi",
+    "Pudina",
+    "Roktokorobi",
+    "Sojne-Moringa",
+    "Sorpogondha",
+    "Thankuni",
+    "Tulsi",
+]
+
+
+# ==========================================================
+# Model Loader
+# ==========================================================
+
+def load_models():
+
+    global model_A
+    global model_B
+
+    if model_A is not None and model_B is not None:
+        return
+
+    logger.info("===================================")
+    logger.info("Loading AI Models...")
+    logger.info("===================================")
+
+    if not os.path.exists(MODEL_A_PATH):
+        raise FileNotFoundError(f"{MODEL_A_PATH} not found")
+
+    if not os.path.exists(MODEL_B_PATH):
+        raise FileNotFoundError(f"{MODEL_B_PATH} not found")
+
+    model_A = tf.keras.models.load_model(
+        MODEL_A_PATH,
+        custom_objects=custom_objects,
+        compile=False,
+    )
+
+    model_B = tf.keras.models.load_model(
+        MODEL_B_PATH,
+        custom_objects=custom_objects,
+        compile=False,
+    )
+
+    logger.info("===================================")
+    logger.info("Models Loaded Successfully")
+    logger.info("===================================")
+
+
+# ==========================================================
+# Routes
+# ==========================================================
+
+@app.get("/")
+def home():
+
+    return {
+        "status": "ok",
+        "message": "AyurVision Backend Running",
+        "version": "1.0.0"
+    }
+
+
+@app.get("/test")
+def test():
+
+    return {
+        "success": True,
+        "message": "Backend is working properly."
+    }
+# ==========================================================
+# Prediction API
+# ==========================================================
+
+@app.post("/predict")
+async def predict_herb(file: UploadFile = File(...)):
+
+    global model_A
+    global model_B
+
+    logger.info("===================================")
+    logger.info("Predict API Called")
+    logger.info(f"Filename : {file.filename}")
+    logger.info("===================================")
+
+    try:
+
+        # Load models only once
+        load_models()
+
+        # Read uploaded image
+        contents = await file.read()
+
+        image = Image.open(io.BytesIO(contents)).convert("RGB")
+        image = np.array(image)
+
+        image = cv2.resize(image, (256, 256))
+
+        # CNN input
+        img_tensor = (
+            tf.cast(
+                tf.expand_dims(image, axis=0),
+                tf.float32,
+            )
+            / 255.0
+        )
+
+        # Handcrafted Features
+        hc_tensor = hc_extractor.extract_all(image)
+
+        logger.info("Running Model A...")
+        pA = model_A.predict(
+            [img_tensor, hc_tensor],
+            verbose=0,
+        )[0]
+
+        logger.info("Running Model B...")
+        pB = model_B.predict(
+            [img_tensor, hc_tensor],
+            verbose=0,
+        )[0]
+
+        avg_probs = (pA + pB) / 2
+
+        top3 = np.argsort(avg_probs)[-3:][::-1]
+
+        results = []
+
+        for idx in top3:
+
+            results.append(
+                {
+                    "class": class_names[idx],
+                    "confidence": float(avg_probs[idx]),
+                }
+            )
+
+        logger.info(
+            f"Prediction Finished : {results[0]['class']}"
+        )
+
+        return {
+            "success": True,
+            "primary_prediction": results[0]["class"],
+            "primary_confidence": results[0]["confidence"],
+            "top_3": results,
+        }
+
+    except Exception as e:
+
+        logger.exception("Prediction Failed")
+
+        return {
+            "success": False,
+            "error": str(e),
+        }
+
+
+# ==========================================================
+# Run Server
+# ==========================================================
+
+if __name__ == "__main__":
+
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 10000)),
+    )
